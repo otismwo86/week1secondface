@@ -7,6 +7,58 @@ body {
     min-height: 100vh;
 }
 
+
+
+
+
+
+.form-group {
+    display: flex;
+    align-items: center;
+    margin-bottom: 15px;
+}
+
+.form-group label,
+.form-group span {
+    min-width: 50px;
+    margin-right: 10px;
+    font-size: 16px;
+    font-weight: 400;
+    color:#666666;
+}
+
+.tpfield {
+    font-family: 'Noto Sans TC', sans-serif;
+    
+    height: 38px; 
+    width: 200px;
+    border: 1px solid #ccc;
+    padding: 10px;
+    border-radius: 5px;
+    font-size: 16px;
+    box-sizing: border-box;
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 .navbar {
     background-color: white;
     position: fixed;
@@ -282,6 +334,7 @@ body {
     font-weight:700;
     text-align: left;
     color:#666666;
+    margin-bottom: 20px;
 }
 .creditcard-info-number{
     margin-top: 3px;
@@ -463,4 +516,5 @@ body {
         height: 30px;
     }
 }
+
 

@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<html>
+    <head>
+        <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+        <meta charset="utf-8"/>
+        <title>台北一日遊</title>
+        <link rel="stylesheet" type="text/css" href="week1secondface/thankyou.css"/>
+        <link href="week1secondface/picture/icon.ico" rel="shortcut icon"/>
+        <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;700&display=swap" rel="stylesheet">
+    </head>
+    <body>
+        <nav class="navbar">
+            <div class="container">
+                <a href="http://18.209.3.48:8000/" class="logo">台北一日遊</a>
+                <ul class="nav-links">
+                    <li id="booking-link"><a href="http://18.209.3.48:8000/booking">預訂行程</a></li>
+                    <li id="auth-link"><a href="#" id="login">查看行程</a></li>
+                </ul>
+            </div>
+        </nav>
+        <div class="ordercontainer">
+            <div class="header">感謝您的訂購，您的訂單資訊為下</div>
+            <div class="ordernumber" id="ordernumber"></div>
+            <div class="order-details" id="order-details"></div>
+        </div>
+        <footer class="footer">
+            <div class="footer-content">COPYRIGHT © 2021 台北一日遊<div>
+        </footer>
+        <script>
+            const url = new URLSearchParams(window.location.search);
+            const number = url.get('number');
+            document.getElementById("ordernumber").textContent = "訂單編號: " + number;
+            if (number) {
+            fetch(`/api/orders/${number}`)
+                .then(response => response.json())
+                .then(data => {
+                    if (data.data) {
+                        const orderDetails = data.data;
+                        document.getElementById("order-details").innerHTML = `
+                            <p>價格: ${orderDetails.price}</p>
+                            <p>行程日期: ${orderDetails.trip.date}</p>
+                            <p>行程時間: ${orderDetails.trip.time}</p>
+                            <h3>景點資訊:</h3>
+                            <p>景點名稱: ${orderDetails.trip.attraction.name}</p>
+                            <p>景點地址: ${orderDetails.trip.attraction.address}</p>
+                            <h3>聯絡資訊:</h3>
+                            <p>聯絡人: ${orderDetails.contact.name}</p>
+                            <p>聯絡郵件: ${orderDetails.contact.email}</p>
+                            <p>聯絡電話: ${orderDetails.contact.phone}</p>
+                        `;
+                    } else {
+                        document.getElementById("order-details").textContent = "訂單資訊未找到";
+                    }
+                })
+                .catch(error => {
+                    console.error('Error fetching order details:', error);
+                    document.getElementById("order-details").textContent = "無法獲取訂單資訊";
+                });
+        } else {
+            document.getElementById("order-details").textContent = "未提供訂單編號";
+        }
+        </script>
+    </body>
+</html>

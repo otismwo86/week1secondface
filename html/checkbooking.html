@@ -44,38 +44,171 @@
         <form id="contactform">
             <div id="contact-info" class="contact-info">
                 <div class="contact-info-header">您的聯絡資訊</div>
-                <div class="contact-info-name"><span>聯絡姓名: </span><input type="text"></div>
-                <div class="contact-info-email"><span>聯絡信箱: <input type="text"></span></div>
-                <div  class="contact-info-number"><span>手機號碼: <input type="text"></span></div>
+                <div class="contact-info-name"><span>聯絡姓名: </span><input type="text" required></div>
+                <div class="contact-info-email"><span>聯絡信箱: <input type="text" required></span></div>
+                <div  class="contact-info-number"><span>手機號碼: <input type="text" required></span></div>
                 <div class="contact-info-footer">請保持手機暢通，準時到達，導覽人員將用手機與您聯繫，務必留下正確的聯絡方式。</div>
             </div>
-        </form>
 
         <div class="line"></div>
-        <div id="creditcard-info" class="creditcard-info">
-            <div class="creditcard-info-header">信用卡付款資訊</div>
-            <div class="creditcard-info-number">
-                <label for="cardNumber">卡片號碼：</label>
-                <input type="text" id="cardNumber" name="cardNumber" placeholder="**** **** **** ****" maxlength="19">
+            <div class="creditcard-info" id="creditcard-info">
+                <div class="creditcard-info-header">信用卡付款資訊</div>
+                <div class="form-group card-number-group">
+                    <span id="cardtype">卡片號碼 :</span>
+                    <div class="tpfield" id="card-number"></div>
+                </div>
+                <div class="form-group expiration-date-group">
+                    <label for="expiration-date" class="control-label">過期時間 :</label>
+                    <div class="tpfield" id="card-expiration-date"></div>
+                </div>
+                <div class="form-group ccv-group">
+                    <label for="ccv" class="control-label">驗證密碼 :</label>
+                    <div class="tpfield" id="card-ccv"></div>
+                </div>
+                <div class="line"></div>
+                <div class="paymentinfo" id="paymentinfo">
+                    <div class="payment" id="payment"></div>
+                    <button type="submit" class="paybutton">確認訂購並付款</button>
+                </div>
             </div>
-            <div class="creditcard-info-expire">
-                <label for="expiryDate">過期時間：</label>
-                <input type="text" id="expiryDate" name="expiryDate" placeholder="MM / YY" maxlength="5">
-            </div>
-            <div class="creditcard-info-code">
-                <label for="cvv">驗證密碼：</label>
-                <input type="text" id="cvv" name="cvv" placeholder="CVV" maxlength="4">
-            </div>
-        </div>
-        <div class="line"></div>
-        <div class="paymentinfo" id="paymentinfo">
-            <div class="payment" id="payment"></div>
-            <button class="paybutton">確認訂購並付款</button>
-        </div>
+
+        </form>
+        
+        
         <footer class="footer">
             <div class="footer-content">COPYRIGHT © 2021 台北一日遊<div>
         </footer>
+        <script src="https://js.tappaysdk.com/sdk/tpdirect/v5.18.0"></script>
         <script>
+            TPDirect.setupSDK(151697, 'app_zscUT0ih8O1hENFB8GR42Vo66N4NUgYwxAdOxPLWFWTIeFs2X8sRdqSjS0Pa', 'sandbox')
+            TPDirect.card.setup({
+            fields : {
+                number: {
+                // css selector
+                    element: '#card-number',
+                    placeholder: '**** **** **** ****'
+                },
+                expirationDate: {
+                    // DOM object
+                    element: document.getElementById('card-expiration-date'),
+                    placeholder: 'MM / YY'
+                },
+                ccv: {
+                    element: '#card-ccv',
+                    placeholder: 'ccv'
+                }
+            },
+            styles: {
+                'input': {
+                    'color': 'gray'
+                },
+                'input.ccv': {
+                    'font-size': '16px'
+                },
+                ':focus': {
+                    'color': 'black'
+                },
+                '.valid': {
+                    'color': 'green'
+                },
+                '.invalid': {
+                    'color': 'red'
+                },
+                '@media screen and (max-width: 400px)': {
+                    'input': {
+                        'color': 'orange'
+                    }
+                }
+            },
+            // 此設定會顯示卡號輸入正確後，會顯示前六後四碼信用卡卡號
+            isMaskCreditCardNumber: true,
+            maskCreditCardNumberRange: {
+                beginIndex: 6, 
+                endIndex: 11
+            }
+        })
+                TPDirect.card.onUpdate(function (update) {
+                // update.canGetPrime === true --> you can call TPDirect.card.getPrime()
+                if (update.canGetPrime) {
+                    // Enable submit Button to get prime.
+                    document.querySelector('.paybutton').removeAttribute('disabled');
+                } else {
+                    // Disable submit Button to get prime.
+                    document.querySelector('.paybutton').setAttribute('disabled', true);
+                }
+
+                // cardTypes = ['mastercard', 'visa', 'jcb', 'amex', 'unionpay','unknown']
+                // if (update.cardType === 'visa') {
+                //     // Handle card type visa.
+                //     console.log('It is Visa!!');
+                // }
+
+                // number 欄位是錯誤的
+                if (update.status.number === 2) {
+                    setNumberFormGroupToError();
+                } else if (update.status.number === 0) {
+                    setNumberFormGroupToSuccess();
+                } else {
+                    setNumberFormGroupToNormal();
+                }
+
+                // 過期日欄位是錯誤的
+                if (update.status.expiry === 2) {
+                    setExpiryFormGroupToError();
+                } else if (update.status.expiry === 0) {
+                    setExpiryFormGroupToSuccess();
+                } else {
+                    setExpiryFormGroupToNormal();
+                }
+
+                // ccv欄位是錯誤的
+                if (update.status.ccv === 2) {
+                    setCcvFormGroupToError();
+                } else if (update.status.ccv === 0) {
+                    setCcvFormGroupToSuccess();
+                } else {
+                    setCcvFormGroupToNormal();
+                }
+            });
+
+            function setNumberFormGroupToError() {
+                document.getElementById('card-number').style.borderColor = 'red';
+            }
+
+            function setNumberFormGroupToSuccess() {
+                document.getElementById('card-number').style.borderColor = 'green';
+            }
+
+            function setNumberFormGroupToNormal() {
+                document.getElementById('card-number').style.borderColor = '#666666';
+            }
+
+            function setExpiryFormGroupToError() {
+                document.getElementById('card-expiration-date').style.borderColor = 'red';
+            }
+
+            function setExpiryFormGroupToSuccess() {    
+                document.getElementById('card-expiration-date').style.borderColor = 'green';
+            }
+
+            function setExpiryFormGroupToNormal() {
+                document.getElementById('card-expiration-date').style.borderColor = '#666666';
+            }
+
+            function setCcvFormGroupToError() {
+                document.getElementById('card-ccv').style.borderColor = 'red';
+            }
+
+            function setCcvFormGroupToSuccess() {
+                document.getElementById('card-ccv').style.borderColor = 'green';
+            }
+
+            function setCcvFormGroupToNormal() {
+                document.getElementById('card-ccv').style.borderColor = '#666666';
+            }
+
+            document.getElementById('contactform').addEventListener('submit', onSubmit);
+   
             // popup表單切換
                 document.addEventListener('DOMContentLoaded', () => {
                     getCurrentUser(); // 檢查當前用戶資訊
@@ -93,7 +226,7 @@
                                 method: 'GET',
                                 headers: {
                                     'Content-Type': 'application/json',
-                                    'Authorization': `Bearer ${token}`
+                                    'Authorization': `Bearer ${token}`  // 添加 Bearer token
                                 }
                             });
 
@@ -103,6 +236,7 @@
                                 authLink.innerHTML = '<a href="#" id="logout">登出系統</a>';
                                 infoContainer.innerHTML = `您好，${data.name}!，待預訂的行程如下：`;
                                 fetchBookingDetails(token);
+                                
                                 //調整畫面
                                 document.querySelector('.contact-info-name input').value = data.name;
                                 document.querySelector('.contact-info-email input').value = data.email;
@@ -146,21 +280,22 @@
                     document.getElementById('overlay').style.display = 'none';
                     document.getElementById('logoutpopup').style.display = 'none';
                 });
-
+                //fetchbooking
                 async function fetchBookingDetails(token){
-                    const bookinginfoContainer = document.getElementById('bookinginfo-container');
-                    try{
-                        let response = await fetch('http://18.209.3.48:8000/api/booking',{
-                            method:"GET",
-                            headers:{
-                                'Content-Type': 'application/json',
-                                'Authorization': `Bearer ${token}`
-                            }
-                        });
-                        if(response.ok){
+                const bookinginfoContainer = document.getElementById('bookinginfo-container');
+                try{
+                    let response = await fetch('http://18.209.3.48:8000/api/booking',{
+                        method:"GET",
+                        headers:{
+                            'Content-Type': 'application/json',
+                            'Authorization': `Bearer ${token}`
+                        }
+                    });
+                    if(response.ok){
                         document.getElementById('nobooking').style.display = "none";
                         const paymentinfo = document.getElementById('payment');
                         const bookingdata = await response.json();
+                        
                         let timeRange = '';
                         if (bookingdata.data.time === 'morning') {
                             timeRange = '早上 9 點到下午 4 點';
@@ -185,6 +320,7 @@
                             </div>  
                         </div>
                         `;
+                        localStorage.setItem('orderData', JSON.stringify(bookingdata.data));
                         document.querySelector('.delete-booking').addEventListener('click', async function() {
                             const bookingId = this.getAttribute('data-id');
                             const token = localStorage.getItem('token');
@@ -214,17 +350,94 @@
                         }
                         document.getElementById('firstline').style.display ="none";
                         document.getElementById('contact-info').style.display ="none";
-                        document.getElementById('creditcard-info').style.display ="none";
                         document.querySelector('footer').style.height = "865px";
                         document.getElementById('paymentinfo').style.display ="none";
                         document.getElementById('bookinginfo-container').style.display ="none";
+                        document.getElementById('creditcard-info').style.display ="none";
                     }
                 } catch(error){
                     console.error('Error:', error);
                 }
             }
 
-            
+            async function onSubmit(event) {
+                event.preventDefault();
+
+                // 取得 TapPay Fields 的 status
+                const tappayStatus = TPDirect.card.getTappayFieldsStatus();
+
+                // 確認是否可以 getPrime
+                if (tappayStatus.canGetPrime === false) {
+                    alert('can not get prime');
+                    return;
+                }
+
+                // Get prime
+                TPDirect.card.getPrime(async (result) => {
+                    if (result.status !== 0) {
+                        console.log('get prime error ' + result.msg);
+                        return;
+                    }
+                    console.log('get prime 成功，prime: ' + result.card.prime);
+
+                const prime = result.card.prime;
+                const orderData = JSON.parse(localStorage.getItem('orderData'));
+                const order = {
+                    price : orderData.price,
+                    trip: {
+                        attraction: {
+                            id: orderData.attraction.id,
+                            name: orderData.attraction.name,
+                            address: orderData.attraction.address,
+                            image: orderData.attraction.image
+                        },
+                        date: orderData.date,
+                        time: orderData.time
+                    },
+                    contact:{
+                        name: document.querySelector('.contact-info-name input').value,
+                        email: document.querySelector('.contact-info-email input').value,
+                        phone: document.querySelector('.contact-info-number input').value
+                    }
+                };
+                try {
+                    const response = await fetch('http://18.209.3.48:8000/api/orders', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                        },
+                        body: JSON.stringify({ prime, order }),
+                    });
+                    const token = localStorage.getItem('token');
+                    const data = await response.json();
+                    if (response.ok && data.status === "PAID") {
+                        try {
+                                const deletebooking = await fetch(`http://18.209.3.48:8000/api/booking`, {
+                                    method: 'DELETE',
+                                    headers: {
+                                        'Content-Type': 'application/json',
+                                        'Authorization': `Bearer ${token}`
+                                    }
+                                });
+
+                                if (deletebooking.ok) {
+                                    console.log('Booking deleted successfully');                                            
+                                } else {
+                                    console.error('Failed to delete booking');
+                                }
+                            } catch (error) {
+                                console.error('Error:', error);
+                            }
+                        window.location.href = '/thankyou?number=' + data.order_number;
+                    } else {
+                        window.location.href = '/thankyou?number=' + data.order_number;
+                    }
+                } catch (error) {
+                    console.error('Error:', error);
+                    alert('付款失敗');
+                }
+                });
+            }
            
            
         </script>

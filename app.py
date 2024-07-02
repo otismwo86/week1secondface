@@ -13,7 +13,7 @@ from fastapi.templating import Jinja2Templates
 from starlette.middleware.sessions import SessionMiddleware
 import jwt
 import datetime as dt
-
+import httpx
 
 
 app=FastAPI()
@@ -124,10 +124,14 @@ async def register(request: Request):
     finally:
         db_connection.close()
 
+
 @app.get("/booking", response_class=HTMLResponse)
 async def home(request: Request):  
     return templates.TemplateResponse("checkbooking.html", {"request": request}) 
 
+@app.get("/thankyou", response_class=HTMLResponse)
+async def thankyou(request: Request,number : int = Query(default=1)):
+    return templates.TemplateResponse("thankyou.html",{"request": request,"number": number})
 
 #booking api
 #fetch行程
@@ -407,4 +411,123 @@ async def SearchAllmrt(request: Request):
 		raise HTTPException(status_code=500, detail=f"An error occurred while executing the query.: {e}")
 
 
+def generate_order_number(cursor):
+    today = dt.date.today().strftime('%Y%m%d')
+    query = "SELECT COUNT(*) FROM orders WHERE order_date = %s"
+    cursor.execute(query, (today,))
+    result = cursor.fetchone()
+    count = result[0] if result else 0
+    order_number = f"{today}{count + 1:03d}"
+    return order_number
+    
 
+
+TAPPAY_API_URL = "https://sandbox.tappaysdk.com/tpc/payment/pay-by-prime"
+
+@app.get("/api/orders/{ordernumber}")
+async def check_order(request: Request,ordernumber: int):
+    db_connection = connect_to_db()
+    cursor = db_connection.cursor(dictionary=True)
+    try:
+        query = """
+        select * from orders where order_number = %s
+        """
+        cursor.execute(query,(ordernumber,))  
+        result = cursor.fetchone()
+        if result is not None:
+            result = serialize_data(result)
+            response_data = {
+                "number": result["order_number"],
+                "price": result["price"],
+                "trip": {
+                    "attraction": {
+                        "id": result["attraction_id"],
+                        "name": result["attraction_name"],
+                        "address": result["attraction_address"],
+                        "image": result["attraction_image"]
+                    },
+                    "date": result["trip_date"],
+                    "time": result["trip_time"]
+                },
+                "contact": {
+                    "name": result["contact_name"],
+                    "email": result["contact_email"],
+                    "phone": result["contact_phone"]
+                },
+                "status": result["status"]
+            }
+            return JSONResponse(content={"data": response_data})
+        return JSONResponse(content={"data": result})
+    finally:
+        cursor.close()
+        db_connection.close()
+
+@app.post("/api/orders")
+async def create_order(request: Request):
+    request_data = await request.json()
+    prime = request_data.get("prime")
+    order_data = request_data.get("order")
+
+    if not prime or not order_data:
+        raise HTTPException(status_code=400, detail="Invalid request")
+    
+    db_connection = connect_to_db()
+    cursor = db_connection.cursor()
+    try:
+        # 生成訂單編號
+        order_number = generate_order_number(cursor)
+        print(order_number)
+
+        # 插入新訂單
+        insert_order_query = """
+        INSERT INTO orders (order_number, order_date, price, status, attraction_id, attraction_name, attraction_address, attraction_image, trip_date, trip_time, contact_name, contact_email, contact_phone)
+        VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+        """
+        cursor.execute(insert_order_query, (
+            order_number, dt.date.today(), order_data["price"], "UNPAID",
+            order_data["trip"]["attraction"]["id"], order_data["trip"]["attraction"]["name"],
+            order_data["trip"]["attraction"]["address"], order_data["trip"]["attraction"]["image"],
+            order_data["trip"]["date"], order_data["trip"]["time"],
+            order_data["contact"]["name"], order_data["contact"]["email"], order_data["contact"]["phone"]
+        ))
+        db_connection.commit()
+
+        # 構建 TapPay API 請求體
+        payload = {
+            "prime": prime,
+            "partner_key": "partner_AsK4q9j742wScTKYrnaIjS0VuX5xKa5506PsWL9jty3wUBubPQjUgf8g",
+            "merchant_id": "otismo86_CTBC",
+            "amount": order_data["price"],
+            "currency": "TWD",
+            "order_number": order_number,
+            "details": "Taipei Day Trip Payment",
+            "cardholder": {
+                "phone_number": order_data["contact"]["phone"],
+                "name": order_data["contact"]["name"],
+                "email": order_data["contact"]["email"],
+            },
+        }
+
+        headers = {
+            "Content-Type": "application/json",
+            "x-api-key": "partner_AsK4q9j742wScTKYrnaIjS0VuX5xKa5506PsWL9jty3wUBubPQjUgf8g"
+        }
+
+        # 發送請求至 TapPay API
+        async with httpx.AsyncClient() as client:
+            response = await client.post(TAPPAY_API_URL, headers=headers, json=payload)
+            payment_result = response.json()
+
+            if payment_result['status'] == 0:
+                # 付款成功，更新訂單狀態為 PAID
+                update_order_query = "UPDATE orders SET status = 'PAID' WHERE order_number = %s"
+                cursor.execute(update_order_query, (order_number,))
+                db_connection.commit()
+                return {"order_number": order_number, "status": "PAID"}
+            else:
+                return {"order_number": order_number, "status": "UNPAID", "message": payment_result['msg']}
+
+
+    finally:
+        cursor.close()
+        db_connection.close()
